@@ -39,7 +39,6 @@ interface UserProfile {
 
 interface AuthResponse {
   user: any;
-  profile: UserProfile;
   error?: {
     message: string;
   };
@@ -123,14 +122,13 @@ const Auth = () => {
       if (response.ok) {
         // Store the token in localStorage
         localStorage.setItem("authToken", data.token);
-        return { user: data.user, profile: data.profile };
+        return { user: data.user};
       } else {
-        return { user: null, profile: null, error: data.error };
+        return { user: null, error: data.error };
       }
     } catch (error) {
       return { 
         user: null, 
-        profile: null, 
         error: { message: "Network error. Please try again." } 
       };
     }
@@ -139,15 +137,15 @@ const Auth = () => {
   const signUp = async (
     email: string, 
     password: string, 
-    userData: { full_name: string; role: "university" | "admin"; institution_name?: string }
+    userData: { full_name: string;institute_name: string }
   ): Promise<AuthResponse> => {
     try {
-      const response = await fetch("/api/auth/signup", {
+      const response = await fetch("http://127.0.0.1:8000/api/auth/signup", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password, ...userData }),
+        body: JSON.stringify({ email, password, userData }),
       });
 
       const data = await response.json();
@@ -155,25 +153,20 @@ const Auth = () => {
       if (response.ok) {
         // Store the token in localStorage
         localStorage.setItem("authToken", data.token);
-        return { user: data.user, profile: data.profile };
+        return { user: data.user };
       } else {
-        return { user: null, profile: null, error: data.error };
+        return { user: null, error: data.error };
       }
     } catch (error) {
       return { 
         user: null, 
-        profile: null, 
         error: { message: "Network error. Please try again." } 
       };
     }
   };
 
   // Redirect authenticated users
-  useEffect(() => {
-    if (user && profile) {
-      // Handled by Navigate below
-    }
-  }, [user, profile]);
+ 
 
   if (loading) {
     return (
@@ -197,7 +190,7 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      const { user: loggedInUser, profile: userProfile, error } = await signIn(loginEmail, loginPassword);
+      const { user: loggedInUser, error } = await signIn(loginEmail, loginPassword);
 
       if (error) {
         if (error.message.includes("Invalid login credentials")) {
@@ -209,8 +202,18 @@ const Auth = () => {
         }
       } else {
         setUser(loggedInUser);
-        setProfile(userProfile);
         toast.success("Logged in successfully!");
+        console.log(loggedInUser);
+        if (loggedInUser) {
+          // Redirect based on role
+          if (loggedInUser.role === "admin") {
+            console.log("Redirecting to admin dashboard");
+            window.location.href = "/admin-dashboard";
+          } else {
+            console.log("Redirecting to university dashboard");
+            window.location.href = "/university-dashboard";
+          }
+        }
       }
     } catch {
       toast.error("An unexpected error occurred");
@@ -222,26 +225,15 @@ const Auth = () => {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!role) {
-      toast.error("Please select your role");
-      return;
-    }
-
-    if (role === "university" && !institutionName.trim()) {
-      toast.error("Please enter your institution name");
-      return;
-    }
-
     setIsLoading(true);
 
     try {
       const userData = {
         full_name: fullName,
-        role: role as "university" | "admin",
-        ...(role === "university" && { institution_name: institutionName }),
+        institute_name:institutionName
       };
 
-      const { user: newUser, profile: newProfile, error } = await signUp(signupEmail, signupPassword, userData);
+      const { user: newUser, error } = await signUp(signupEmail, signupPassword, userData);
 
       if (error) {
         if (error.message.includes("User already registered")) {
@@ -255,7 +247,6 @@ const Auth = () => {
         }
       } else {
         setUser(newUser);
-        setProfile(newProfile);
         toast.success(
           "Account created successfully! Please check your email to confirm your account."
         );
@@ -433,35 +424,8 @@ const Auth = () => {
                       className="bg-[#3C3D37]/50 text-[#ECDFCC] placeholder-[#ECDFCC]/40 focus:ring-[#697565] focus:border-[#697565]"
                     />
                   </div>
+                 
                   <div className="space-y-2">
-                    <Label htmlFor="role" className="text-[#ECDFCC]">
-                      Role
-                    </Label>
-                    <Select
-                      onValueChange={(value: "university" | "admin") => setRole(value)}
-                      required
-                    >
-                      <SelectTrigger className="bg-[#3C3D37]/50 text-[#ECDFCC] focus:ring-[#697565] focus:border-[#697565]">
-                        <SelectValue placeholder="Select your role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="university">
-                          <div className="flex items-center gap-2">
-                            <Building className="h-4 w-4" />
-                            University/Institution
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="admin">
-                          <div className="flex items-center gap-2">
-                            <Users className="h-4 w-4" />
-                            System Administrator
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {role === "university" && (
-                    <div className="space-y-2">
                       <Label htmlFor="institution" className="text-[#ECDFCC]">
                         Institution Name
                       </Label>
@@ -475,7 +439,7 @@ const Auth = () => {
                         className="bg-[#3C3D37]/50 text-[#ECDFCC] placeholder-[#ECDFCC]/40 focus:ring-[#697565] focus:border-[#697565]"
                       />
                     </div>
-                  )}
+                  
                   <Button
                     type="submit"
                     className="w-full bg-[#697565] text-white hover:bg-[#5C6755] transition-transform hover:scale-[1.02]"

@@ -1,4 +1,4 @@
-import { useAuth } from "@/contexts/AuthContext";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,9 +13,55 @@ import {
   Upload,
 } from "lucide-react";
 import { Navigate } from "react-router-dom";
+import { c } from "node_modules/framer-motion/dist/types.d-Cjd591yU";
 
 const UniversityDashboard = () => {
-  const { user, profile, loading, signOut } = useAuth();
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Check if user is authenticated
+    const checkAuth = async () => {
+      try {
+        const token = localStorage.getItem("authToken");
+        if (!token) {
+          setLoading(false);
+          alert("No auth token found, redirecting to /auth");
+          window.location.href = "/auth";
+          return;
+        }
+
+        // Verify token with backend
+        const response = await fetch("http://127.0.0.1:8000/api/auth/me", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Token ${token}`, // 👈 MUST match Django's expectation
+          },
+        });
+        console.log("Auth check response:", response);
+        if (response.ok) {
+          const data = await response.json();
+          console.log("data all good")
+          setUser(data.user);
+        } else {
+          localStorage.removeItem("authToken");
+        }
+      } catch (error) {
+        console.error("Auth check failed:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  const signOut = () => {
+    localStorage.removeItem("authToken");
+    setUser(null);
+    window.location.href = "/auth";
+  };
 
   if (loading) {
     return (
@@ -25,13 +71,10 @@ const UniversityDashboard = () => {
     );
   }
 
-  if (!user || !profile) {
-    return <Navigate to="/auth" replace />;
-  }
-
-  if (profile.role !== "university") {
-    return <Navigate to="/admin-dashboard" replace />;
-  }
+  // if (!user) {
+  //   alert("You must be logged in to access the University Dashboard.");
+  //   return <Navigate to="/auth" replace />;
+  // }
 
   const stats = [
     {
@@ -181,13 +224,12 @@ const UniversityDashboard = () => {
                         <p className="text-xs text-gray-400">{activity.time}</p>
                       </div>
                       <Badge
-                        className={`px-2 py-1 rounded-md ${
-                          activity.type === "verified"
+                        className={`px-2 py-1 rounded-md ${activity.type === "verified"
                             ? "bg-green-500/20 text-[#10B981]"
                             : activity.type === "flagged"
-                            ? "bg-red-500/20 text-[#EF4444]"
-                            : "bg-yellow-500/20 text-[#F59E0B]"
-                        }`}
+                              ? "bg-red-500/20 text-[#EF4444]"
+                              : "bg-yellow-500/20 text-[#F59E0B]"
+                          }`}
                       >
                         {activity.type}
                       </Badge>
