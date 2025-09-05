@@ -21,9 +21,12 @@ from django.core.mail import EmailMessage
 @permission_classes([AllowAny])
 def loginfunc(request):
 
-    email = request.POST.get("email")
-    password = request.POST.get("password")
+    email = request.data.get("email")
+    password = request.data.get("password")
     print(email,password)
     return JsonResponse({"status":"success","message":"Login successful"})
+
+
+
 
 # Create your views here.
