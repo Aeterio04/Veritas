@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,8 +28,27 @@ import { toast } from "sonner";
 import { Navigate } from "react-router-dom";
 import { Shield, Building, Users } from "lucide-react";
 
+// Define types for user and profile
+interface UserProfile {
+  id: string;
+  email: string;
+  full_name: string;
+  role: "university" | "admin";
+  institution_name?: string;
+}
+
+interface AuthResponse {
+  user: any;
+  profile: UserProfile;
+  error?: {
+    message: string;
+  };
+}
+
 const Auth = () => {
-  const { user, profile, loading, signIn, signUp } = useAuth();
+  const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
   // Login state
@@ -43,6 +61,112 @@ const Auth = () => {
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState<"university" | "admin" | "">("");
   const [institutionName, setInstitutionName] = useState("");
+
+  // Check if user is already logged in on component mount
+  useEffect(() => {
+    checkAuthStatus();
+  }, []);
+
+  const checkAuthStatus = async () => {
+    try {
+      const token = localStorage.getItem("authToken");
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch("/api/auth/me", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
+        setProfile(data.profile);
+      }
+    } catch (error) {
+      console.error("Auth check failed:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // API endpoints your backend should provide:
+  // 1. POST /api/auth/login - for user login
+  // 2. POST /api/auth/signup - for user registration
+  // 3. GET /api/auth/me - to get current user profile (protected route)
+  // 4. POST /api/auth/logout - for user logout (optional)
+
+
+   const getCSRFToken = () => {
+    const cookieValue = document.cookie
+      .split("; ")
+      .find((row) => row.startsWith("csrftoken="))
+      ?.split("=")[1];
+    return cookieValue || "";
+  };
+  const signIn = async (email: string, password: string): Promise<AuthResponse> => {
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCSRFToken(),
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Store the token in localStorage
+        localStorage.setItem("authToken", data.token);
+        return { user: data.user, profile: data.profile };
+      } else {
+        return { user: null, profile: null, error: data.error };
+      }
+    } catch (error) {
+      return { 
+        user: null, 
+        profile: null, 
+        error: { message: "Network error. Please try again." } 
+      };
+    }
+  };
+
+  const signUp = async (
+    email: string, 
+    password: string, 
+    userData: { full_name: string; role: "university" | "admin"; institution_name?: string }
+  ): Promise<AuthResponse> => {
+    try {
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password, ...userData }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Store the token in localStorage
+        localStorage.setItem("authToken", data.token);
+        return { user: data.user, profile: data.profile };
+      } else {
+        return { user: null, profile: null, error: data.error };
+      }
+    } catch (error) {
+      return { 
+        user: null, 
+        profile: null, 
+        error: { message: "Network error. Please try again." } 
+      };
+    }
+  };
 
   // Redirect authenticated users
   useEffect(() => {
@@ -73,7 +197,7 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      const { error } = await signIn(loginEmail, loginPassword);
+      const { user: loggedInUser, profile: userProfile, error } = await signIn(loginEmail, loginPassword);
 
       if (error) {
         if (error.message.includes("Invalid login credentials")) {
@@ -84,6 +208,8 @@ const Auth = () => {
           toast.error(error.message);
         }
       } else {
+        setUser(loggedInUser);
+        setProfile(userProfile);
         toast.success("Logged in successfully!");
       }
     } catch {
@@ -115,7 +241,7 @@ const Auth = () => {
         ...(role === "university" && { institution_name: institutionName }),
       };
 
-      const { error } = await signUp(signupEmail, signupPassword, userData);
+      const { user: newUser, profile: newProfile, error } = await signUp(signupEmail, signupPassword, userData);
 
       if (error) {
         if (error.message.includes("User already registered")) {
@@ -128,6 +254,8 @@ const Auth = () => {
           toast.error(error.message);
         }
       } else {
+        setUser(newUser);
+        setProfile(newProfile);
         toast.success(
           "Account created successfully! Please check your email to confirm your account."
         );
@@ -145,6 +273,8 @@ const Auth = () => {
     }
   };
 
+  // The rest of your UI code remains exactly the same...
+  // [Keep all the JSX code from your original component exactly as is]
   return (
     <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden bg-[#1E201E]">
       {/* Smooth Gradient Background */}
