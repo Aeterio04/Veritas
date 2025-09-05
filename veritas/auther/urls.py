@@ -5,6 +5,7 @@ from . import views
 
 urlpatterns = [
     path("api/auth/login",views.loginfunc,name="login"),
- 
+    path("api/auth/signup",views.signupfunc,name="signup"),
+    path("api/auth/me",views.getme,name="me"),
     
 ]
