@@ -115,6 +115,8 @@ CORS_ALLOWED_ORIGINS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
+AUTH_USER_MODEL = 'auther.CustomUser'
+
 LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'UTC'
