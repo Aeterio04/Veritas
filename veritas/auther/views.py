@@ -22,8 +22,10 @@ from .models import CustomUser
 @permission_classes([AllowAny])
 def loginfunc(request):
 
+
     email = request.data.get("email")
     password = request.data.get("password")
+
     user=CustomUser.objects.filter(email=email).first()
     if user is None:
         return JsonResponse({"status": "error", "message": "Invalid email or password"}, status=400)
@@ -36,6 +38,7 @@ def loginfunc(request):
         "role": user.role,
         "institution_name": user.institution_name
     }})
+
 
 @api_view(['POST'])
 @permission_classes([AllowAny]) 
